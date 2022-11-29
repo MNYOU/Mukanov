@@ -340,17 +340,21 @@ class Report:
         return naming, data
 
 
-file_name = input('Введите название файла: ')
-prof_name = input('Введите название профессии: ')
-data_set = DataSet()
-vacancies = data_set.csv_parse(file_name)
+def start():
+    file_name = input('Введите название файла: ')
+    prof_name = input('Введите название профессии: ')
+    data_set = DataSet()
+    vacancies = data_set.csv_parse(file_name)
 
-data_stats = DataStats()
-data_stats.calculate_stats(vacancies, prof_name)
-data_stats.print()
+    data_stats = DataStats()
+    data_stats.calculate_stats(vacancies, prof_name)
+    data_stats.print()
 
-report = Report(data_stats.get_all())
-report.generate_excel()
-report.generate_image()
+    report = Report(data_stats.get_all())
+    report.generate_excel()
+    report.generate_image()
 
-report.generate_pdf()
+    report.generate_pdf()
+
+
+start()
