@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Report</title>
+    <style>
+        body {
+            font-family: Verdana, sans-serif;
+            text-align: center;
+        }
+
+        img {
+            display: block;
+            margin: 0 auto;
+        }
+
+        table, td, tr {
+            border: 1px black solid;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 5px;
+        }
+
+        div {
+            margin: 0 auto;
+            display: inline-block;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .left {
+            float: left;
+            margin-right: 25px
+        }
+
+        .right {
+            float: right
+        }
+    </style>
+</head>
+<body>
+<h1 align="center">Аналитика по зарплатам и городам для профессии {{prof_name}}</h1>
+<img src="file:///D:/PythonProject/report/graph.png" alt="charts">
+<!--<img src="file:///C:/Users/Арман/Documents/Programs/Python/week6/graph.png" alt="charts">-->
+<h2>Статистика по годам</h2>
+<table>
+    <tr>
+        {% for heading in headings_years %}
+        <td class="bold">{{heading}}</td>
+        {% endfor %}
+    </tr>
+    {% for row in data_years %}
+    <tr>
+        {% for cell in row %}
+        <td>{{cell}}</td>
+        {% endfor %}
+    </tr>
+    {% endfor%}
+</table>
+<h2>Статистика по городам</h2>
+<div>
+    <table class="left">
+        <tr>
+            {% for i in range(2) %}
+            <td class="bold">{{headings_cities[i]}}</td>
+            {% endfor %}
+        </tr>
+        {% for row in data_cities %}
+        <tr>
+            {% for j in range(2) %}
+            <td>{{row[j]}}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+    <table class="right">
+        <tr>
+            {% for i in range(3,5) %}
+            <td class="bold">{{headings_cities[i]}}</td>
+            {% endfor %}
+        </tr>
+        {% for row in data_cities %}
+        <tr>
+            {% for i in range(3,5) %}
+            <td>{{row[i]}}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+</body>
+</html>
