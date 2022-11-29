@@ -1,3 +1,4 @@
 /.idea
 /venv
 /path/to/vacancies.csv
+/path/to/vacancies_by_years.csv
