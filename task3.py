@@ -309,8 +309,8 @@ class Report:
 
     def generate_pdf(self):
         pdf_template = self.create_template()
-        config = pdfkit.configuration(wkhtmltopdf=r'D:\wkhtmltox\bin\wkhtmltopdf.exe')
-        # config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+        # config = pdfkit.configuration(wkhtmltopdf=r'D:\wkhtmltox\bin\wkhtmltopdf.exe')
+        config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
         options = {'enable-local-file-access': None}
         pdfkit.from_string(pdf_template, 'report.pdf', configuration=config, options=options)
 
@@ -357,4 +357,4 @@ def start():
     report.generate_pdf()
 
 
-start()
+# start()
