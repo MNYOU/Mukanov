@@ -135,16 +135,6 @@ class Vacancy:
         time.reverse()
         return '.'.join(time)
 
-    # def get_value_for_sort(self, key):
-    #     key = self.naming_to_en[key]
-    #     if key == 'salary':
-    #         return self.salary.get_value_for_compare()
-    #     else:
-    #         return self.__getattribute__(key)
-
-    # def get_time(self, s): # вполне вероятно - это то, что нужно
-    #     return s.split('-')[0]
-
 
 class Salary:
     currency_to_rub = {"AZN": 35.68, "BYR": 23.91, "EUR": 59.90, "GEL": 21.74, "KGS": 0.76, "KZT": 0.13, "RUR": 1,
@@ -271,7 +261,7 @@ class DataStats:
         self.name = name
         for i in range(2007, 2023):
             if i == 2022:
-                t=3
+                t = 3
             fields = self.filter_vacancies(vacancies, 'Дата публикации вакансии', str(i), True)
             if len(fields) != 0:
                 self.set_value_dicts(self.salary_years, self.count_years, i, fields)
@@ -514,10 +504,8 @@ def get_data_in_table():
 
 
 def get_data_in_stats():
-    # file_name = input('Введите название файла: ')
-    file_name = 'vacancies_by_year.csv'
-    # prof_name = input('Введите название профессии: ')
-    prof_name = 'программист'
+    file_name = input('Введите название файла: ')
+    prof_name = input('Введите название профессии: ')
     data_set = DataSet()
     vacancies = data_set.csv_parse(file_name)
 
@@ -532,8 +520,7 @@ def get_data_in_stats():
     report.generate_pdf()
 
 
-# s = input('Какие данные вы хотели бы видеть?: ')
-s = 'Статистика'
+s = input('Какие данные вы хотели бы видеть?: ')
 if s == 'Вакансии':
     get_data_in_table()
 elif s == 'Статистика':
