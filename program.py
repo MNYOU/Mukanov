@@ -1,5 +1,6 @@
 import csv
 import decimal
+import math
 import re
 import sys
 
@@ -12,6 +13,8 @@ from openpyxl.styles import NamedStyle, Font, Border, Side
 from openpyxl.styles.numbers import BUILTIN_FORMATS
 from openpyxl.utils import get_column_letter
 from prettytable import prettytable
+# import doctest
+import unittest
 
 
 class DataSet:
@@ -88,6 +91,30 @@ class DataSet:
             return '\n'.join(result)
 
         return {key: get_correct_string(vacancy[key]) for key in vacancy}
+
+
+class DataSetTests(unittest.TestCase):
+    def test_csv_parse(self):
+        output_vacancies = DataSet().csv_parse('vacancies.csv')
+        self.assertEqual(91, len(output_vacancies))
+
+    def test_get_correct_vacancy(self):
+        vacancy = Vacancy(DataSet().get_correct_vacancy(
+            {"name": "Программист <html><T>", "area_name": "Омск    ", "published_at": "2007-12-03T17:34:36+0300",
+             "salary_from": " <br>100   ", "salary_to": "10000   ",
+             "salary_currency": "RUR    <bobofds>"}), False).__dict__
+        expected_vacancy = Vacancy(
+            {"name": "Программист", "area_name": "Омск", "published_at": "2007-12-03T17:34:36+0300",
+             "salary_from": "100", "salary_to": "10000",
+             "salary_currency": "RUR"}, False).__dict__
+        for key in vacancy:
+            if key == 'salary':
+                salary = vacancy[key].__dict__
+                expected_salary = expected_vacancy[key].__dict__
+                for salary_key in salary:
+                    self.assertEqual(expected_salary[salary_key], salary[salary_key])
+            else:
+                self.assertEqual(expected_vacancy[key], vacancy[key])
 
 
 def filter_vacancies(vacancies, key, value):
@@ -191,12 +218,12 @@ class Vacancy:
 
         Args:
             key (str): Ключ, по которому происходит выбор значения
-
         Returns:
-            str, int: Значение для сравнения"""
+            str, int: Значение для сравнения
+        """
         key = self.naming_to_en[key]
-        if key == 'salary':
-            return self.salary.get_salary_in_rub()
+        if 'salary' in key:
+            return self.salary.get_value_for_sort(key)
         elif key == 'key_skills':
             return len(self.key_skills)
         elif key == 'experience_id':
@@ -231,10 +258,49 @@ class Vacancy:
         Args:
             s (str): Дата и время в виде строки
         Returns:
-            str: Дата в правильном формате"""
+            str: Дата в правильном формате
+
+        >>> Vacancy(None, False).get_date(None)
+        ''
+        >>> Vacancy(None, False).get_date("")
+        ''
+        >>> Vacancy(None, False).get_date("2007-12-03T17:34:36+0300")
+        '03.12.2007'
+        >>> Vacancy(None, False).get_date("2022-07-05T18:21:28+0300")
+        '05.07.2022'
+        """
+        if s is None or ('T' not in s and '-' not in s.split('T')):
+            return ""
         time = s.split('T')[0].split('-')
         time.reverse()
         return '.'.join(time)
+
+
+class VacancyTests(unittest.TestCase):
+    def test_is_suitable(self):
+        vacancy = Vacancy(
+            {"name": "Главный программист", "area_name": "Омск", "published_at": "2007-12-03T17:34:36+0300",
+             "salary_from": "100", "salary_to": "10000",
+             "salary_currency": "RUR"}, False)
+        self.assertEqual(True, vacancy.is_suitable("Название", "программист"))
+        self.assertEqual(False, vacancy.is_suitable("Название региона", "ТОмск"))
+        self.assertEqual(True, vacancy.is_suitable("Дата публикации вакансии", "03.12.2007"))
+        self.assertEqual(False, vacancy.is_suitable("Оклад", 99))
+        self.assertEqual(True, vacancy.is_suitable("Оклад", 100))
+        self.assertEqual(True, vacancy.is_suitable("Идентификатор валюты оклада", "Рубли"))
+        self.assertEqual(False, vacancy.is_suitable("Идентификатор валюты оклада", "Евро"))
+
+    def test_get_value_for_sort(self):
+        vacancy = Vacancy(
+            {"name": "Главный программист", "area_name": "Омск", "published_at": "2007-12-03T17:34:36+0300",
+             "salary_from": "100", "salary_to": "10000",
+             "salary_currency": "RUR"}, False)
+        self.assertEqual("Главный программист", vacancy.get_value_for_sort("Название"))
+        self.assertEqual("Омск", vacancy.get_value_for_sort("Название региона"))
+        self.assertEqual("2007-12-03T17:34:36+0300", vacancy.get_value_for_sort("Дата публикации вакансии"))
+        self.assertEqual((int(vacancy.salary.salary_to) + int(vacancy.salary.salary_from)) / 2,
+                         vacancy.get_value_for_sort("Оклад"))
+        self.assertEqual("Рубли", vacancy.get_value_for_sort("Идентификатор валюты оклада"))
 
 
 class Salary:
@@ -277,12 +343,31 @@ class Salary:
 
         Returns:
             bool: Удовлетворяет ли зарплата заданому условию
+
+        >>> Salary(dict(salary_from=50000, salary_to=105000, salary_currency="rur"),False).is_suitable('salary', 100000)
+        True
+        >>> Salary(dict(salary_from=50000, salary_to=105000, salary_currency="rur"),False).__class__.__name__
+        'Salary'
         """
         if key == 'salary':
             return int(self.salary_from) <= int(value) <= int(
                 self.salary_to)
         else:
             return self.currency_to_ru[self.salary_currency.lower()] == value
+
+    def get_value_for_sort(self, key):
+        """Подбирает значение для сортировки
+
+        Args:
+            key (str): Ключ, по которому происходит выбор значения
+        Returns:
+            str, int: Значение для сравнения
+        """
+        if key == "salary":
+            return self.get_salary_in_rub()
+        elif key == "salary_currency":
+            return self.currency_to_ru[self.salary_currency.lower()]
+        return ""
 
     def get_salary_in_rub(self):
         """Вычисляет среднюю зарплату из вилки и переводит в рубли, при помощи словаря - currency_to_rub
@@ -460,6 +545,9 @@ class DataStats:
         Args:
             vacancies (list): Вакансии для формирования статистики
             prof_name (str): Название Профессии для формирования статистики
+
+        Returns:
+            dict: Словарь со татистикой
         """
         self.prof_name = prof_name
         for i in range(2007, 2023):
@@ -469,6 +557,10 @@ class DataStats:
                 fields = self.filter_vacancies(fields, 'Название', self.prof_name)
                 self.set_value_dicts(self.salary_prof, self.count_prof, i, fields)
         self.calculate_stats_areas(vacancies)
+        return {"salary_years": self.salary_years, "count_years": self.count_years,
+                "areas_with_salrs": self.areas_with_salrs,
+                "salary_prof": self.salary_prof, "count_prof": self.count_prof,
+                "areas_with_shares": self.areas_with_shares, }
 
     def set_value_dicts(self, dic_salary, dic_count, key, vacancies):
         """Вычисляет статистику по годам и заполняет ей словари
@@ -525,8 +617,18 @@ class DataStats:
 
         Returns:
             int: Средняя зарплата в рублях
+
+        >>> DataStats().get_avg_salary(None)
+        0
+        >>> DataStats().get_avg_salary([])
+        0
+        >>> DataStats().get_avg_salary(DataSet().csv_parse('vacancies.csv')[:1])
+        90000
+        >>> DataStats().get_avg_salary(DataSet().csv_parse('vacancies.csv'))
+        94892
+
         """
-        if len(vacancies) == 0:
+        if vacancies is None or len(vacancies) == 0:
             return 0
         return int(sum([v.salary.get_salary_in_rub() for v in vacancies]) / len(vacancies))
 
@@ -562,6 +664,33 @@ class DataStats:
         print('Динамика количества вакансий по годам для выбранной профессии:', self.count_prof)
         print('Уровень зарплат по городам (в порядке убывания):', self.areas_with_salrs)
         print('Доля вакансий по городам (в порядке убывания):', self.areas_with_shares)
+
+
+class DataStatsTest(unittest.TestCase):
+    def test_calculate_stats(self):
+        vacancies = DataSet().csv_parse("vacancies.csv")
+        vacancies_in_moscow = list(filter(lambda v: v.area_name == "Москва", vacancies))
+        data_stats = DataStats()
+        data_stats.calculate_stats_areas(vacancies_in_moscow)
+        areas_with_salrs, areas_with_shares = data_stats.areas_with_salrs, data_stats.areas_with_shares
+        self.assertIn(len(areas_with_salrs.keys()), [0, 1])
+        self.assertIn(len(areas_with_shares.keys()), [0, 1])
+
+    def test_filter_vacancies(self):
+        data_stats = DataStats()
+        vacancies = DataSet().csv_parse("vacancies.csv")
+        filtered_vacancies = data_stats.filter_vacancies(vacancies, "Название региона", "Москва")
+        data_stats.calculate_stats_areas(vacancies)
+        self.assertEqual(math.ceil(len(vacancies) * data_stats.areas_with_shares['Москва']), len(filtered_vacancies))
+
+        filtered_vacancies = data_stats.filter_vacancies(vacancies, "Название", "программист")
+        self.assertEqual(2, len(filtered_vacancies))
+
+        filtered_vacancies = data_stats.filter_vacancies(vacancies, "Оклад", "1000000000")
+        self.assertEqual(0, len(filtered_vacancies))
+
+        filtered_vacancies = data_stats.filter_vacancies(vacancies, "Дата публикации вакансии", "2022", year_only=True)
+        self.assertEqual(len(vacancies), len(filtered_vacancies))
 
 
 class Report:
