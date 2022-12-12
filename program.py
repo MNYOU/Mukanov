@@ -1,9 +1,9 @@
 import csv
+import datetime
 import decimal
 import math
 import re
 import sys
-
 import numpy as np
 import pdfkit
 from jinja2 import Environment, FileSystemLoader
@@ -13,8 +13,11 @@ from openpyxl.styles import NamedStyle, Font, Border, Side
 from openpyxl.styles.numbers import BUILTIN_FORMATS
 from openpyxl.utils import get_column_letter
 from prettytable import prettytable
-# import doctest
+import doctest
 import unittest
+from datetime import datetime
+import dateutil
+from dateutil.parser import *
 
 
 class DataSet:
@@ -46,7 +49,7 @@ class DataSet:
             file_name (str): Название файла для чтения
 
         Returns:
-            list: Список вакансий и названий полей
+            list: Список вакансий
         """
         with open(file_name, 'r', encoding="utf-8-sig") as csvfile:
             reader = csv.DictReader(csvfile)
@@ -63,7 +66,7 @@ class DataSet:
                     print('Нет данных')
                 sys.exit()
 
-        return vacancies, reader.fieldnames
+        return vacancies
 
     def get_correct_vacancy(self, vacancy):
         """Удаляет лишние символы из вакансии
@@ -205,7 +208,7 @@ class Vacancy:
         if key == 'published_at':
             if year_only:
                 return value == self.published_at.split('-')[0]
-            return value == self.get_date(self.published_at)
+            return value == self.parse_date(self.published_at)
         elif key == 'salary' or key == 'salary_currency':
             return self.salary.is_suitable(key, value)
         self_value = self.__getattribute__(key)
@@ -245,14 +248,14 @@ class Vacancy:
                    self.employer_name,
                    self.salary.get_formatted_value(),
                    self.area_name,
-                   self.get_date(self.published_at), ]
+                   self.parse_date(self.published_at)]
 
         for i, value in enumerate(f_value):
             if len(value) > 100:
                 f_value[i] = value[:100] + '...'
         return f_value
 
-    def get_date(self, s):
+    def parse_date(self, s):
         """Извлекает дату из строки, содержащей дату и время
 
         Args:
@@ -260,13 +263,13 @@ class Vacancy:
         Returns:
             str: Дата в правильном формате
 
-        >>> Vacancy(None, False).get_date(None)
+        >>> Vacancy(None, False).parse_date(None)
         ''
-        >>> Vacancy(None, False).get_date("")
+        >>> Vacancy(None, False).parse_date("")
         ''
-        >>> Vacancy(None, False).get_date("2007-12-03T17:34:36+0300")
+        >>> Vacancy(None, False).parse_date("2007-12-03T17:34:36+0300")
         '03.12.2007'
-        >>> Vacancy(None, False).get_date("2022-07-05T18:21:28+0300")
+        >>> Vacancy(None, False).parse_date("2022-07-05T18:21:28+0300")
         '05.07.2022'
         """
         if s is None or ('T' not in s and '-' not in s.split('T')):
@@ -274,6 +277,32 @@ class Vacancy:
         time = s.split('T')[0].split('-')
         time.reverse()
         return '.'.join(time)
+
+    # def parse_date(self, s):
+    #     """Извлекает дату из строки, содержащей дату и время
+    #
+    #     Args:
+    #         s (str): Дата и время в виде строки
+    #     Returns:
+    #         str: Дата в правильном формате
+    #     """
+    #     if s is None or ('T' not in s and '-' not in s.split('T')):
+    #         return ""
+    #     date = datetime.strptime("2016-04-15T08:27:18-0500", "%Y-%m-%dT%H:%M:%S%z")
+    #     return f'{date.day}.{date.month}.{date.year}'
+
+    # def parse_date(self, s):
+    #     """Извлекает дату из строки, содержащей дату и время
+    #
+    #     Args:
+    #         s (str): Дата и время в виде строки
+    #     Returns:
+    #         str: Дата в правильном формате
+    #     """
+    #     if s is None or ('T' not in s and '-' not in s.split('T')):
+    #         return ""
+    #     date = parse("2016-04-15T08:27:18-0500")
+    #     return f'{date.day}.{date.month}.{date.year}'
 
 
 class VacancyTests(unittest.TestCase):
@@ -722,6 +751,7 @@ class Report:
         self.sheet_years = self.fill_data_years(book.create_sheet('Статистика по годам'))
         self.sheet_cities = self.fill_data_cities(book.create_sheet('Статистика по городам'))
         self.stylize_book(book)
+        sheet = book.create_sheet("fgfdg")
         book.save('report.xlsx')
         return book
 
@@ -952,7 +982,7 @@ def start_data_to_table():
         input('Обратный порядок сортировки (Да / Нет): '),
         input('Введите диапазон вывода: ').split(),
         input('Введите требуемые столбцы: ').split(', '))
-    vacancies, source_naming = DataSet().csv_parse_for_table(file_name)
+    vacancies = DataSet().csv_parse_for_table(file_name)
     if input_connect.need_filter:
         vacancies = filter_vacancies(vacancies, input_connect.key_filter, input_connect.value_filter)
         if len(vacancies) == 0:
