@@ -11,3 +11,22 @@
 ![image](https://user-images.githubusercontent.com/90038617/207003202-7ddad399-d91f-4490-8c20-27a4e48d9933.png)
 ![image](https://user-images.githubusercontent.com/90038617/207004834-256cc7bc-3346-409e-8ce6-f05eb1c08237.png)
 самый эффективный оказался метод по ручной обработке даты, поэтому в проекте оставлю его
+
+3.2.1
+![image](https://user-images.githubusercontent.com/90038617/207999436-d5642ada-cc6f-4f72-b984-96ba365ba03f.png)
+[2010.csv](https://github.com/MNYOU/Mukanov/files/10241879/2010.csv)
+[2011.csv](https://github.com/MNYOU/Mukanov/files/10241880/2011.csv)
+[2012.csv](https://github.com/MNYOU/Mukanov/files/10241881/2012.csv)
+[2013.csv](https://github.com/MNYOU/Mukanov/files/10241882/2013.csv)
+[2014.csv](https://github.com/MNYOU/Mukanov/files/10241883/2014.csv)
+[2015.csv](https://github.com/MNYOU/Mukanov/files/10241884/2015.csv)
+[2016.csv](https://github.com/MNYOU/Mukanov/files/10241885/2016.csv)
+[2017.csv](https://github.com/MNYOU/Mukanov/files/10241886/2017.csv)
+[2018.csv](https://github.com/MNYOU/Mukanov/files/10241887/2018.csv)
+[2019.csv](https://github.com/MNYOU/Mukanov/files/10241888/2019.csv)
+[2020.csv](https://github.com/MNYOU/Mukanov/files/10241889/2020.csv)
+[2021.csv](https://github.com/MNYOU/Mukanov/files/10241890/2021.csv)
+[2022.csv](https://github.com/MNYOU/Mukanov/files/10241891/2022.csv)
+[2007.csv](https://github.com/MNYOU/Mukanov/files/10241892/2007.csv)
+[2008.csv](https://github.com/MNYOU/Mukanov/files/10241893/2008.csv)
+[2009.csv](https://github.com/MNYOU/Mukanov/files/10241894/2009.csv)
