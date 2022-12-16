@@ -32,8 +32,10 @@
 [2009.csv](https://github.com/MNYOU/Mukanov/files/10241894/2009.csv)
 3.2.2
 без мультипроцессинга
-![image](https://user-images.githubusercontent.com/90038617/208024985-d2460d17-f6cc-40d9-a353-7f0564365348.png)
+![image](https://user-images.githubusercontent.com/90038617/208029044-cc786252-76d0-462a-ad2a-11a9bb1c5b60.png)
 используя multiprocessing
-![image](https://user-images.githubusercontent.com/90038617/208025349-963a8b5d-c64b-4175-8b1d-8b3b7ee9b981.png)
-
+![image](https://user-images.githubusercontent.com/90038617/208029018-04c95a3b-b4ae-4787-bafd-7070ebcc3a1d.png)
+используя Concurrent futures
+![image](https://user-images.githubusercontent.com/90038617/208028964-cfa043ba-0e99-4dcf-a77f-cf6ff72e59ea.png)
+самым быстрым вариантом оказался вариант с Concurrent futures
 
