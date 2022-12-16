@@ -2,7 +2,6 @@ import csv
 import datetime
 import decimal
 import math
-import multiprocessing
 import re
 import sys
 import numpy as np
@@ -20,6 +19,8 @@ import unittest
 from datetime import datetime
 import dateutil
 from dateutil.parser import *
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
 
 
 class DataSet:
@@ -515,6 +516,7 @@ class DataStats:
 
     def __init__(self):
         """Инициализирует объект DataStats"""
+        self.directory = ""
         self.prof_name = ""
         self.salary_years = {}
         self.count_years = {}
@@ -523,11 +525,12 @@ class DataStats:
         self.areas_with_salrs = {}
         self.areas_with_shares = {}
 
-    def calculate_stats(self, vacancies, prof_name):
+    def calculate_stats(self, vacancies, directory, prof_name):
         """Формирует статистики по годам и по городам
 
         Args:
             vacancies (list): Вакансии для формирования статистики
+            directory (str): Директория, в которой содержаться csv файлы с вакансиями
             prof_name (str): Название Профессии для формирования статистики
 
         Returns:
@@ -546,16 +549,30 @@ class DataStats:
                 "salary_prof": self.salary_prof, "count_prof": self.count_prof,
                 "areas_with_shares": self.areas_with_shares, }
 
-    def calculate_stats_by_multiprocess(self, vacancies, prof_name):
+    def set_value_dicts(self, dic_salary, dic_count, key, vacancies):
+        """Вычисляет статистику по годам и заполняет ей словари
+
+        Args:
+            dic_salary (dict): Словарь с зарплатами по годам
+            dic_count (dict): Словарь с количеством вакансий по годам
+            key (str or int): Ключ, по которому будут заполняться словари
+            vacancies (list): Список вакансий, по которым будет вычисляться статистика
+        """
+        dic_salary[key] = self.get_avg_salary(vacancies)
+        dic_count[key] = len(vacancies)
+
+    def calculate_stats_by_multiprocess(self, vacancies, directory, prof_name):
         """Формирует статистики по годам и по городам, используя multiprocessing
 
         Args:
             vacancies (list): Вакансии для формирования статистики
+            directory (str): Директория, в которой содержаться csv файлы с вакансиями
             prof_name (str): Название Профессии для формирования статистики
 
         Returns:
             dict: Словарь со татистикой
         """
+        self.directory = directory
         self.prof_name = prof_name
         pool = multiprocessing.Pool(16)
         for i, res in enumerate(pool.map(self.calculate_stats_year, [str(i) for i in range(2007, 2023)])):
@@ -570,8 +587,35 @@ class DataStats:
                 "salary_prof": self.salary_prof, "count_prof": self.count_prof,
                 "areas_with_shares": self.areas_with_shares, }
 
+    def calculate_stats_by_futures(self, vacancies, directory, prof_name):
+        """Формирует статистики по годам и по городам, используя concurrent.futures
+
+        Args:
+            vacancies (list): Вакансии для формирования статистики
+            directory (str): Директория, в которой содержаться csv файлы с вакансиями
+            prof_name (str): Название Профессии для формирования статистики
+
+        Returns:
+            dict: Словарь со татистикой
+        """
+        self.directory = directory
+        self.prof_name = prof_name
+        with ProcessPoolExecutor(16) as executer:
+            results = executer.map(self.calculate_stats_year, [str(i) for i in range(2007, 2023)])
+        for i, res in enumerate(list(results)):
+            year = i + 2007
+            self.salary_years[year] = res['avg_salary']
+            self.salary_prof[year] = res['avg_salary_prof']
+            self.count_years[year] = res['count']
+            self.count_prof[year] = res['count_prof']
+        self.calculate_stats_areas(vacancies)
+        return {"salary_years": self.salary_years, "count_years": self.count_years,
+                "areas_with_salrs": self.areas_with_salrs,
+                "salary_prof": self.salary_prof, "count_prof": self.count_prof,
+                "areas_with_shares": self.areas_with_shares, }
+
     def calculate_stats_year(self, year):
-        """Формирует статистику по заданному году, создавая новый процесс
+        """Формирует статистику вакансий по заданному году, считывая нужный файл
 
         Args:
             year (str): Год, по которому нужно собрать статистику
@@ -579,24 +623,12 @@ class DataStats:
         Returns:
             dict: Словарь со татистикой
         """
-        vacancies = DataSet().csv_parse(f'devided_csv/{year}.csv')
+        vacancies = DataSet().csv_parse(f'{self.directory}/{year}.csv')
         vacancies_with_name = self.filter_vacancies(vacancies, "Название", self.prof_name)
         return {'avg_salary': self.get_avg_salary(vacancies),
                 'avg_salary_prof': self.get_avg_salary(vacancies_with_name),
                 'count': len(vacancies),
                 'count_prof': len(vacancies_with_name)}
-
-    def set_value_dicts(self, dic_salary, dic_count, key, vacancies):
-        """Вычисляет статистику по годам и заполняет ей словари
-
-        Args:
-            dic_salary (dict): Словарь с зарплатами по годам
-            dic_count (dict): Словарь с количеством вакансий по годам
-            key (str or int): Ключ, по которому будут заполняться словари
-            vacancies (list): Список вакансий, по которым будет вычисляться статистика
-        """
-        dic_salary[key] = self.get_avg_salary(vacancies)
-        dic_count[key] = len(vacancies)
 
     def calculate_stats_areas(self, vacancies):
         """Вычисляет статистику по городам и заполняет ей атрибуты класса
@@ -1019,13 +1051,14 @@ def start_data_to_table():
 
 def start_data_to_stats():
     """Запускает сценарий получения статистики в виде pdf файла"""
+    directory = input('Введите дирректорию, в которой csv файлы')
     file_name = input('Введите название файла: ')
     prof_name = input('Введите название профессии: ')
     data_set = DataSet()
     vacancies = data_set.csv_parse(file_name)
 
     data_stats = DataStats()
-    data_stats.calculate_stats_by_multiprocess(vacancies, prof_name)
+    data_stats.calculate_stats_by_futures(vacancies, directory, prof_name)
     data_stats.print()
 
     report = Report(data_stats.get_all_stats())
