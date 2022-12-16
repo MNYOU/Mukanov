@@ -2,9 +2,11 @@ import csv
 import datetime
 import decimal
 import math
+import multiprocessing
 import re
 import sys
 import numpy as np
+import pandas as pd
 import pdfkit
 from jinja2 import Environment, FileSystemLoader
 from matplotlib import pyplot as plt
@@ -39,26 +41,7 @@ class DataSet:
                 if len(vacancy) == len(reader.fieldnames) and not any(
                         value is None or value == '' for value in vacancy.values()):
                     vacancy_with_correct_value = self.get_correct_vacancy(vacancy)
-                    vacancies.append(Vacancy(vacancy_with_correct_value, False))
-        return vacancies
-
-    def csv_parse_for_table(self, file_name):
-        """Считывает ваканси с файла, формирует их список для создания таблицы
-
-        Args:
-            file_name (str): Название файла для чтения
-
-        Returns:
-            list: Список вакансий
-        """
-        with open(file_name, 'r', encoding="utf-8-sig") as csvfile:
-            reader = csv.DictReader(csvfile)
-            vacancies = []
-            for vacancy in reader:
-                if len(vacancy) == len(reader.fieldnames) and not any(
-                        value is None or value == '' for value in vacancy.values()):
-                    vacancy_with_correct_value = self.get_correct_vacancy(vacancy)
-                    vacancies.append(Vacancy(vacancy_with_correct_value, True))
+                    vacancies.append(Vacancy(vacancy_with_correct_value))
             if reader.fieldnames is None or len(vacancies) == 0:
                 if reader.fieldnames is None:
                     print('Пустой файл')
@@ -105,11 +88,11 @@ class DataSetTests(unittest.TestCase):
         vacancy = Vacancy(DataSet().get_correct_vacancy(
             {"name": "Программист <html><T>", "area_name": "Омск    ", "published_at": "2007-12-03T17:34:36+0300",
              "salary_from": " <br>100   ", "salary_to": "10000   ",
-             "salary_currency": "RUR    <bobofds>"}), False).__dict__
+             "salary_currency": "RUR    <bobofds>"})).__dict__
         expected_vacancy = Vacancy(
             {"name": "Программист", "area_name": "Омск", "published_at": "2007-12-03T17:34:36+0300",
              "salary_from": "100", "salary_to": "10000",
-             "salary_currency": "RUR"}, False).__dict__
+             "salary_currency": "RUR"}).__dict__
         for key in vacancy:
             if key == 'salary':
                 salary = vacancy[key].__dict__
@@ -118,34 +101,6 @@ class DataSetTests(unittest.TestCase):
                     self.assertEqual(expected_salary[salary_key], salary[salary_key])
             else:
                 self.assertEqual(expected_vacancy[key], vacancy[key])
-
-
-def filter_vacancies(vacancies, key, value):
-    """Фильтрует вакансии по ключу и значению
-
-    Args:
-        vacancies (list): Список вакансий
-        key (str): Ключ, по которому происходит фильтрация
-        value (str or int): Значение для фильтрации
-
-    Returns:
-        list: Отфильтрованные вакансии
-    """
-    return list(filter(lambda v: v.is_suitable(key, value), vacancies))
-
-
-def sort_vacancies(vacancies, key, reverse):
-    """Сортирует вакансии по ключу
-
-    Args:
-        vacancies (list): Список вакансий
-        key (str): Ключ, по которому происходит сортировка
-        reverse (bool): Показывает, нужен ли обратный порядок сортировки
-
-    Returns:
-        bool: Отсортированные вакансии
-    """
-    vacancies.sort(key=lambda v: v.get_value_for_sort(key), reverse=reverse)
 
 
 class Vacancy:
@@ -163,7 +118,7 @@ class Vacancy:
         employer_name (str): Название кампании, разместившей вакансию
     """
 
-    def __init__(self, data, is_for_table):
+    def __init__(self, data):
         """Инициализирует объект Salary
 
         Args:
@@ -173,10 +128,10 @@ class Vacancy:
         if data is None:
             return
         self.name = data['name']
-        self.salary = Salary({key: data[key] for key in data if 'salary' in key}, is_for_table)
+        self.salary = Salary({key: data[key] for key in data if 'salary' in key}, 'description' in data)
         self.area_name = data['area_name']
         self.published_at = data['published_at']
-        if is_for_table:
+        if 'description' in data:
             self.description = data['description']
             self.key_skills = data['key_skills'].split('\n')
             self.experience_id = data['experience_id']
@@ -263,13 +218,13 @@ class Vacancy:
         Returns:
             str: Дата в правильном формате
 
-        >>> Vacancy(None, False).parse_date(None)
+        >>> Vacancy(None).parse_date(None)
         ''
-        >>> Vacancy(None, False).parse_date("")
+        >>> Vacancy(None).parse_date("")
         ''
-        >>> Vacancy(None, False).parse_date("2007-12-03T17:34:36+0300")
+        >>> Vacancy(None).parse_date("2007-12-03T17:34:36+0300")
         '03.12.2007'
-        >>> Vacancy(None, False).parse_date("2022-07-05T18:21:28+0300")
+        >>> Vacancy(None).parse_date("2022-07-05T18:21:28+0300")
         '05.07.2022'
         """
         if s is None or ('T' not in s and '-' not in s.split('T')):
@@ -310,7 +265,7 @@ class VacancyTests(unittest.TestCase):
         vacancy = Vacancy(
             {"name": "Главный программист", "area_name": "Омск", "published_at": "2007-12-03T17:34:36+0300",
              "salary_from": "100", "salary_to": "10000",
-             "salary_currency": "RUR"}, False)
+             "salary_currency": "RUR"})
         self.assertEqual(True, vacancy.is_suitable("Название", "программист"))
         self.assertEqual(False, vacancy.is_suitable("Название региона", "ТОмск"))
         self.assertEqual(True, vacancy.is_suitable("Дата публикации вакансии", "03.12.2007"))
@@ -323,7 +278,7 @@ class VacancyTests(unittest.TestCase):
         vacancy = Vacancy(
             {"name": "Главный программист", "area_name": "Омск", "published_at": "2007-12-03T17:34:36+0300",
              "salary_from": "100", "salary_to": "10000",
-             "salary_currency": "RUR"}, False)
+             "salary_currency": "RUR"})
         self.assertEqual("Главный программист", vacancy.get_value_for_sort("Название"))
         self.assertEqual("Омск", vacancy.get_value_for_sort("Название региона"))
         self.assertEqual("2007-12-03T17:34:36+0300", vacancy.get_value_for_sort("Дата публикации вакансии"))
@@ -591,6 +546,46 @@ class DataStats:
                 "salary_prof": self.salary_prof, "count_prof": self.count_prof,
                 "areas_with_shares": self.areas_with_shares, }
 
+    def calculate_stats_by_multiprocess(self, vacancies, prof_name):
+        """Формирует статистики по годам и по городам, используя multiprocessing
+
+        Args:
+            vacancies (list): Вакансии для формирования статистики
+            prof_name (str): Название Профессии для формирования статистики
+
+        Returns:
+            dict: Словарь со татистикой
+        """
+        self.prof_name = prof_name
+        pool = multiprocessing.Pool(16)
+        for i, res in enumerate(pool.map(self.calculate_stats_year, [str(i) for i in range(2007, 2023)])):
+            year = i + 2007
+            self.salary_years[year] = res['avg_salary']
+            self.salary_prof[year] = res['avg_salary_prof']
+            self.count_years[year] = res['count']
+            self.count_prof[year] = res['count_prof']
+        self.calculate_stats_areas(vacancies)
+        return {"salary_years": self.salary_years, "count_years": self.count_years,
+                "areas_with_salrs": self.areas_with_salrs,
+                "salary_prof": self.salary_prof, "count_prof": self.count_prof,
+                "areas_with_shares": self.areas_with_shares, }
+
+    def calculate_stats_year(self, year):
+        """Формирует статистику по заданному году, создавая новый процесс
+
+        Args:
+            year (str): Год, по которому нужно собрать статистику
+
+        Returns:
+            dict: Словарь со татистикой
+        """
+        vacancies = DataSet().csv_parse(f'devided_csv/{year}.csv')
+        vacancies_with_name = self.filter_vacancies(vacancies, "Название", self.prof_name)
+        return {'avg_salary': self.get_avg_salary(vacancies),
+                'avg_salary_prof': self.get_avg_salary(vacancies_with_name),
+                'count': len(vacancies),
+                'count_prof': len(vacancies_with_name)}
+
     def set_value_dicts(self, dic_salary, dic_count, key, vacancies):
         """Вычисляет статистику по годам и заполняет ей словари
 
@@ -614,15 +609,15 @@ class DataStats:
             if vacancy.area_name not in dic_areas:
                 dic_areas[vacancy.area_name] = 0
             dic_areas[vacancy.area_name] += 1
-        areas = [area for area in dic_areas if dic_areas[area] / len(vacancies) >= 0.01]
+        areas = [area for area in dic_areas if dic_areas[area] / len(vacancies) >= 0.01][:10]
         for area in areas:
             fields = self.filter_vacancies(vacancies, 'Название региона', area)
             self.set_value_dicts(self.areas_with_salrs, self.areas_with_shares, area, fields)
             self.areas_with_shares = {area: float(format(dic_areas[area] / len(vacancies), '.4f')) for area
                                       in self.areas_with_shares}
 
-        self.areas_with_salrs = self.get_sorted_dic(self.areas_with_salrs, lambda item: item[1])
-        self.areas_with_shares = self.get_sorted_dic(self.areas_with_shares, lambda item: item[1])
+        self.areas_with_salrs = Helpers().get_sorted_dic(self.areas_with_salrs, lambda item: item[1])
+        self.areas_with_shares = Helpers().get_sorted_dic(self.areas_with_shares, lambda item: item[1])
 
     def filter_vacancies(self, vacancies, key, value, year_only=False):
         """Фильтрует вакансии
@@ -661,20 +656,7 @@ class DataStats:
             return 0
         return int(sum([v.salary.get_salary_in_rub() for v in vacancies]) / len(vacancies))
 
-    def get_sorted_dic(self, dic, handler):
-        """Сортирует словарь
-
-        Args:
-            dic (dict): Словарь, требующий сортировки
-            handler (function): Обработчик, по которому сортируется словарь
-
-        Returns:
-            dict: Отсортированный словарь
-        """
-        sorted_tuples = sorted(dic.items(), key=handler, reverse=True)
-        return {pair[0]: pair[1] for i, pair in enumerate(sorted_tuples) if i < 10}
-
-    def get_all(self):
+    def get_all_stats(self):
         """Возвращает всю статистику, сформированную классом
 
         Returns:
@@ -972,6 +954,47 @@ class Report:
         return naming, data
 
 
+class Helpers:
+    def filter_vacancies(self, vacancies, key, value):
+        """Фильтрует вакансии по ключу и значению
+
+        Args:
+            vacancies (list): Список вакансий
+            key (str): Ключ, по которому происходит фильтрация
+            value (str or int): Значение для фильтрации
+
+        Returns:
+            list: Отфильтрованные вакансии
+        """
+        return list(filter(lambda v: v.is_suitable(key, value), vacancies))
+
+    def sort_vacancies(self, vacancies, key, reverse):
+        """Сортирует вакансии по ключу
+
+        Args:
+            vacancies (list): Список вакансий
+            key (str): Ключ, по которому происходит сортировка
+            reverse (bool): Показывает, нужен ли обратный порядок сортировки
+
+        Returns:
+            bool: Отсортированные вакансии
+        """
+        vacancies.sort(key=lambda v: v.get_value_for_sort(key), reverse=reverse)
+
+    def get_sorted_dic(self, dic, handler):
+        """Сортирует словарь
+
+        Args:
+            dic (dict): Словарь, требующий сортировки
+            handler (function): Обработчик, по которому сортируется словарь
+
+        Returns:
+            dict: Отсортированный словарь
+        """
+        sorted_tuples = sorted(dic.items(), key=handler, reverse=True)
+        return {pair[0]: pair[1] for i, pair in enumerate(sorted_tuples) if i < 10}
+
+
 def start_data_to_table():
     """Запускает сценарий получения вакансий в виде таблице"""
     file_name = input('Введите название файла: ')
@@ -982,14 +1005,14 @@ def start_data_to_table():
         input('Обратный порядок сортировки (Да / Нет): '),
         input('Введите диапазон вывода: ').split(),
         input('Введите требуемые столбцы: ').split(', '))
-    vacancies = DataSet().csv_parse_for_table(file_name)
+    vacancies = DataSet().csv_parse(file_name)
     if input_connect.need_filter:
-        vacancies = filter_vacancies(vacancies, input_connect.key_filter, input_connect.value_filter)
+        vacancies = Helpers().filter_vacancies(vacancies, input_connect.key_filter, input_connect.value_filter)
         if len(vacancies) == 0:
             print('Ничего не найдено')
             sys.exit()
     if input_connect.need_sort:
-        sort_vacancies(vacancies, input_connect.key_sort, input_connect.sort_reverse)
+        Helpers().sort_vacancies(vacancies, input_connect.key_sort, input_connect.sort_reverse)
 
     input_connect.print_table(vacancies)
 
@@ -1002,17 +1025,18 @@ def start_data_to_stats():
     vacancies = data_set.csv_parse(file_name)
 
     data_stats = DataStats()
-    data_stats.calculate_stats(vacancies, prof_name)
+    data_stats.calculate_stats_by_multiprocess(vacancies, prof_name)
     data_stats.print()
 
-    report = Report(data_stats.get_all())
+    report = Report(data_stats.get_all_stats())
     report.generate_excel()
     report.generate_image()
     report.generate_pdf()
 
 
-s = input('Какие данные вы хотели бы видеть(Вакансии/Статистика)?: ')
-if s == 'Вакансии':
-    start_data_to_table()
-elif s == 'Статистика':
-    start_data_to_stats()
+if __name__ == '__main__':
+    s = input('Какие данные вы хотели бы видеть(Вакансии/Статистика)?: ')
+    if s == 'Вакансии':
+        start_data_to_table()
+    elif s == 'Статистика':
+        start_data_to_stats()
