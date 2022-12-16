@@ -30,3 +30,10 @@
 [2007.csv](https://github.com/MNYOU/Mukanov/files/10241892/2007.csv)
 [2008.csv](https://github.com/MNYOU/Mukanov/files/10241893/2008.csv)
 [2009.csv](https://github.com/MNYOU/Mukanov/files/10241894/2009.csv)
+3.2.2
+без мультипроцессинга
+![image](https://user-images.githubusercontent.com/90038617/208024985-d2460d17-f6cc-40d9-a353-7f0564365348.png)
+используя multiprocessing
+![image](https://user-images.githubusercontent.com/90038617/208025349-963a8b5d-c64b-4175-8b1d-8b3b7ee9b981.png)
+
+
