@@ -1,4 +1,5 @@
 /.idea
 /venv
+/devided_csv
 /vacancies.csv
 /vacancies_by_year.csv
